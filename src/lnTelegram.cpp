@@ -6,9 +6,9 @@
 #include "lnTelegram.h"
 
 // Costructor
-TelegramModule::TelegramModule() : bot(client) {}
+LnTelegram::LnTelegram() : bot(client) {}
 
-void TelegramModule::init(const char* botToken,
+void LnTelegram::init(const char* botToken,
                           const int64_t allowedIDs[],
                           uint8_t idCount,
                           const char* const allowedCommands[],
@@ -46,7 +46,7 @@ void TelegramModule::init(const char* botToken,
 
 }
 
-void TelegramModule::loop() {
+void LnTelegram::loop() {
     if (WiFi.status() != WL_CONNECTED)
         return;
 
@@ -87,7 +87,7 @@ void TelegramModule::loop() {
         _callback(msg, command, payload);
 }
 
-void TelegramModule::sendMsg(int64_t chat_id, const char* text) {
+void LnTelegram::sendMsg(int64_t chat_id, const char* text) {
     if (WiFi.status() != WL_CONNECTED)
         return;
 
@@ -95,12 +95,12 @@ void TelegramModule::sendMsg(int64_t chat_id, const char* text) {
 }
 
 
-void TelegramModule::setBusy(bool state) {
+void LnTelegram::setBusy(bool state) {
     busy = state;
 }
 
 
-bool TelegramModule::isAuthorized(int64_t id) {
+bool LnTelegram::isAuthorized(int64_t id) {
     for (uint8_t i = 0; i < _idCount; i++) {
         if (id == _allowedIDs[i])
             return true;
@@ -109,7 +109,7 @@ bool TelegramModule::isAuthorized(int64_t id) {
 }
 
 
-bool TelegramModule::isValidCommand(const char* cmd) {
+bool LnTelegram::isValidCommand(const char* cmd) {
     char buffer[MAX_CMD_LEN];
 
     for (uint8_t i = 0; i < _cmdCount; i++) {
@@ -123,7 +123,7 @@ bool TelegramModule::isValidCommand(const char* cmd) {
     return false;
 }
 
-void TelegramModule::parseCommand(const char* text, char* command, char* payload) {
+void LnTelegram::parseCommand(const char* text, char* command, char* payload) {
     // copia sicura
     char buffer[160];
     strncpy(buffer, text, sizeof(buffer));

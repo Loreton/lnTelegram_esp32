@@ -4,7 +4,7 @@
 //
 
 #include <WiFi.h>
-#include "TelegramModule.h"
+#include "lnTelegram.h"
 #include "NetworkUtils.h"
 
 #define __I_AM_MAIN_CPP__
@@ -45,7 +45,7 @@ const char* const allowedCommands[] PROGMEM = {
 // =============================
 // ISTANZA MODULO
 // =============================
-TelegramModule telegram;
+LnTelegram telegram;
 
 
 // =============================

@@ -8,7 +8,7 @@
 #define MAX_CMD_LEN      32
 #define MAX_PAYLOAD_LEN  128
 
-class TelegramModule {
+class LnTelegram {
 
 public:
 
@@ -27,7 +27,7 @@ public:
         const char* command,
         const char* payload
     );
-    TelegramModule();
+    LnTelegram();
 
     void init(const char* botToken,
               const int64_t allowedIDs[],
