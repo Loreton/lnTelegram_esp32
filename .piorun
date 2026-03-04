@@ -1,0 +1,1 @@
+/home/loreto/filu/lnEnv/start_proc/piorun.sh
