@@ -3,7 +3,7 @@
 // Date .........: 12-09-2025 08.29.52
 //
 
-#include "TelegramModule.h"
+#include "lnTelegram.h"
 
 // Costructor
 TelegramModule::TelegramModule() : bot(client) {}
