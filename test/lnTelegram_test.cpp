@@ -5,18 +5,26 @@
 
 #include <WiFi.h>
 #include "lnTelegram.h"
-#include "NetworkUtils.h"
 
-#define __I_AM_MAIN_CPP__
+
+// --- Project
+#define  __I_AM_MAIN_CPP__
+// #define LOG_MODULE_LEVEL LOG_MODULE_INFO
+#include "lnLogger_Class.h"
+#include "WiFiManager.h"
+#include "lnTimeClock.h"
+
+
+
 // =============================
-// CONFIG WIFI
+// WIFI Credentials
 // =============================
 #include "ssid_credentials_esp32.h"
 const char* ssid     = casetta_ssid;
 const char* password = casetta_password;
 
 // =============================
-// CONFIG TELEGRAM
+// TELEGRAM Credentials
 // =============================
 #include "telegram_credentials_esp32.h"
 const char* BOT_TOKEN = Loreto_Esp32_BotToken;
@@ -45,7 +53,9 @@ const char* const allowedCommands[] PROGMEM = {
 // =============================
 // ISTANZA MODULO
 // =============================
-LnTelegram telegram;
+LnTelegram      telegram;
+WiFiManagerNB   wifiManager;
+lnTimeClock     ln_clock;
 
 
 // =============================
@@ -101,42 +111,28 @@ void myCallback(const TBMessage& msg,
     }
 }
 
-void initWiFi() {
-    // ----------------------------------
-    // - connessione WiFi
-    // ----------------------------------
-    Serial.println("\nConnessione WiFi...");
-    Serial.printf("ssid.......: %s\n", ssid);
-    // Serial.printf("password...: %s\n", password);
 
-    WiFi.begin(ssid, password);
-
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
+void wifiInit() {
+    // - prima del wifiManager.init()
+    for (int8_t i = 0; i < loretoNetworksCount; i++) {
+        wifiManager.addSSID(loretoNetworks[i].ssid, loretoNetworks[i].password);
     }
 
-    Serial.println("\nWiFi connesso!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
+    wifiManager.init(
+        60,   // scan ogni 60s se connesso
+        30,   // scan ogni 30s se non connesso
+        5*60,  // timeout max 5 minuti (5*60)
+        8        // rssi gap
+    );
 
+    Serial.print("Gateway: ");
+    Serial.println(WiFi.gatewayIP());
 
-    // ----------------------------------
-    // - NTP altrimenti Telegram va in errore a causa
-    // - dell'HTTPS che richiede il timing corretto
-    // ----------------------------------
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-    Serial.print("Sincronizzazione NTP");
+    Serial.print("DNS: ");
+    Serial.println(WiFi.dnsIP());
 
-    time_t now = time(nullptr);
-    while (now < 8 * 3600 * 2) {   // attende tempo valido
-       delay(500);
-       Serial.print(".");
-       now = time(nullptr);
-    }
-
-    Serial.println("\nOra sincronizzata!");
-
+    Serial.print("RSSI: ");
+    Serial.println(WiFi.RSSI());
 }
 
 
@@ -148,20 +144,12 @@ void initWiFi() {
 void setup() {
     Serial.begin(115200);
     delay(1000);
+    lnLog.init(128, 20);  // line_buffer_len, filename_buffer_len
 
-    if (!initNetwork(ssid, password)) {
-        Serial.println("Network FAILED");
-        while (true);  // blocca se non connesso
-    }
+    wifiInit();
 
-    Serial.print("Gateway: ");
-    Serial.println(WiFi.gatewayIP());
-
-    Serial.print("DNS: ");
-    Serial.println(WiFi.dnsIP());
-
-    Serial.print("RSSI: ");
-    Serial.println(WiFi.RSSI());
+    // supponiamo WiFi già gestito altrove
+    ln_clock.begin();
 
     telegram.init(
         BOT_TOKEN,
@@ -172,14 +160,15 @@ void setup() {
         myCallback
     );
 
-    Serial.println("TelegramModule inizializzato");
+    Serial.println("LnTelegram inizializzato");
 }
 
 // =============================
 // LOOP
 // =============================
 void loop() {
-    maintainNetwork();
+    wifiManager.update();
+    ln_clock.update();
 
     static unsigned long lastCheck = 0;
 
@@ -187,4 +176,6 @@ void loop() {
         telegram.loop();
         lastCheck = millis();
     }
+
+    delay(100);
 }
