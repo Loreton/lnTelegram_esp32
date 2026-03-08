@@ -4,112 +4,106 @@
 //
 
 #include "lnTelegram.h"
+#include <string.h>
 
-// Costructor
-LnTelegram::LnTelegram() : bot(client) {}
+TelegramModule::TelegramModule() {}
 
-void LnTelegram::init(const char* botToken,
-                          const int64_t allowedIDs[],
+void TelegramModule::init(const char* botToken,
+                          const char* const allowedIDs[],
                           uint8_t idCount,
                           const char* const allowedCommands[],
                           uint8_t cmdCount,
-                          CommandCallback cb) {
+                          CommandCallback cb)
+{
     _allowedIDs = allowedIDs;
     _idCount = idCount;
+
     _allowedCommands = allowedCommands;
     _cmdCount = cmdCount;
+
     _callback = cb;
 
-    client.setInsecure();        // necessario per HTTPS Telegram
     bot.setTelegramToken(botToken);
     bot.begin();
-
-    IPAddress dns(8,8,8,8);  // Google DNS
-    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns);
-
-    /* configurazione DNS
-        IPAddress local_IP;
-        IPAddress gateway;
-        IPAddress subnet;
-        IPAddress dns(8,8,8,8);  // Google DNS
-        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns);
-
-        oppure tutto statico....
-
-        IPAddress local_IP(192,168,1,50);
-        IPAddress gateway(192,168,1,1);
-        IPAddress subnet(255,255,255,0);
-        IPAddress dns(8,8,8,8);
-        WiFi.config(local_IP, gateway, subnet, dns);
-    */
-
-
 }
 
-void LnTelegram::loop() {
+void TelegramModule::loop()
+{
     if (WiFi.status() != WL_CONNECTED)
-        return;
+        return;   // dormiente se WiFi non connesso
 
     TBMessage msg;
 
     if (!bot.getNewMessage(msg))
         return;
 
-    // char chat_id[20];
-    // snprintf(chat_id, sizeof(chat_id), "%lld", msg.chatId);
-    int64_t chat_id = msg.chatId;
+    char chat_id[20];
+    snprintf(chat_id, sizeof(chat_id), "%lld", msg.chatId);
 
-    // --- autorizzazione ---
     if (!isAuthorized(chat_id)) {
-        sendMsg(chat_id, "Utente non autorizzato");
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer),
+                 "Non autorizzato\nNome: %s\nID: %s",
+                 msg.sender.firstName.c_str(),
+                 chat_id);
+        sendMsg(chat_id, buffer);
         return;
     }
 
-    // --- sistema occupato ---
-    if (busy) {
-        sendMsg(chat_id, "Sistema occupato");
+    if (EV_moving) {
+        sendMsg(chat_id, "Sistema occupato (EV moving)");
         return;
     }
 
-    // --- parsing comando ---
+    char text[MAX_MSG_LEN];
+    strncpy(text, msg.text.c_str(), sizeof(text));
+    text[sizeof(text)-1] = '\0';
+
     char command[MAX_CMD_LEN];
     char payload[MAX_PAYLOAD_LEN];
 
-    parseCommand(msg.text.c_str(), command, payload);
+    extractCommand(text, command);
+    extractPayload(text, payload);
 
     if (!isValidCommand(command)) {
         sendMsg(chat_id, "Comando sconosciuto");
         return;
     }
 
-    if (_callback)
-        // _callback(chat_id, command, payload);
-        _callback(msg, command, payload);
+    if (_callback != nullptr)
+        _callback(chat_id, command, payload);
 }
 
-void LnTelegram::sendMsg(int64_t chat_id, const char* text) {
+void TelegramModule::sendMsg(const char* chat_id, const char* text)
+{
     if (WiFi.status() != WL_CONNECTED)
         return;
 
-    bot.sendTo(chat_id, text);
+    bot.sendMessage(chat_id, text, "");
 }
 
-
-void LnTelegram::setBusy(bool state) {
-    busy = state;
+void TelegramModule::setEVmoving(bool state)
+{
+    EV_moving = state;
 }
 
+bool TelegramModule::isAuthorized(const char* id)
+{
+    char buffer[20];
 
-bool LnTelegram::isAuthorized(int64_t id) {
     for (uint8_t i = 0; i < _idCount; i++) {
-        if (id == _allowedIDs[i])
+
+        strcpy_P(buffer, (PGM_P)pgm_read_ptr(&_allowedIDs[i]));
+
+        if (strcmp(id, buffer) == 0)
             return true;
     }
+
     return false;
 }
 
-
-bool LnTelegram::isValidCommand(const char* cmd) {
+bool TelegramModule::isValidCommand(const char* cmd)
+{
     char buffer[MAX_CMD_LEN];
 
     for (uint8_t i = 0; i < _cmdCount; i++) {
@@ -123,28 +117,27 @@ bool LnTelegram::isValidCommand(const char* cmd) {
     return false;
 }
 
-void LnTelegram::parseCommand(const char* text, char* command, char* payload) {
-    // copia sicura
-    char buffer[160];
-    strncpy(buffer, text, sizeof(buffer));
-    buffer[sizeof(buffer) - 1] = '\0';
+void TelegramModule::extractCommand(const char* text, char* command)
+{
+    uint8_t i = 0;
 
-    // --- separa comando e payload ---
-    char* space = strchr(buffer, ' ');
-
-    if (space) {
-        *space = '\0';
-        strncpy(payload, space + 1, MAX_PAYLOAD_LEN);
-        payload[MAX_PAYLOAD_LEN - 1] = '\0';
-    } else {
-        payload[0] = '\0';
+    while (text[i] != ' ' && text[i] != '\0' && i < MAX_CMD_LEN - 1) {
+        command[i] = text[i];
+        i++;
     }
 
-    // --- rimuove eventuale "@botname" ---
-    char* at = strchr(buffer, '@');
-    if (at)
-        *at = '\0';
+    command[i] = '\0';
+}
 
-    strncpy(command, buffer, MAX_CMD_LEN);
-    command[MAX_CMD_LEN - 1] = '\0';
+void TelegramModule::extractPayload(const char* text, char* payload)
+{
+    const char* space = strchr(text, ' ');
+
+    if (space == nullptr) {
+        payload[0] = '\0';
+        return;
+    }
+
+    strncpy(payload, space + 1, MAX_PAYLOAD_LEN);
+    payload[MAX_PAYLOAD_LEN - 1] = '\0';
 }
