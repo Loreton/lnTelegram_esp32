@@ -11,7 +11,7 @@
 #define  __I_AM_MAIN_CPP__
 // #define LOG_MODULE_LEVEL LOG_MODULE_INFO
 #include "lnLogger_Class.h"
-#include "WiFiManager.h"
+#include "lnWiFiManager.h"
 #include "lnTimeClock.h"
 
 
@@ -54,7 +54,7 @@ const char* const allowedCommands[] PROGMEM = {
 // ISTANZA MODULO
 // =============================
 LnTelegram      telegram;
-WiFiManagerNB   wifiManager;
+lnWiFiManagerNB   wifiManager;
 lnTimeClock     ln_clock;
 
 
@@ -125,14 +125,14 @@ void wifiInit() {
         8        // rssi gap
     );
 
-    Serial.print("Gateway: ");
-    Serial.println(WiFi.gatewayIP());
+    // Serial.print("Gateway: ");
+    // Serial.println(WiFi.gatewayIP());
 
-    Serial.print("DNS: ");
-    Serial.println(WiFi.dnsIP());
+    // Serial.print("DNS: ");
+    // Serial.println(WiFi.dnsIP());
 
-    Serial.print("RSSI: ");
-    Serial.println(WiFi.RSSI());
+    // Serial.print("RSSI: ");
+    // Serial.println(WiFi.RSSI());
 }
 
 
@@ -151,16 +151,16 @@ void setup() {
     // supponiamo WiFi già gestito altrove
     ln_clock.begin();
 
-    telegram.init(
-        BOT_TOKEN,
-        allowedIDs,
-        sizeof(allowedIDs) / sizeof(allowedIDs[0]),
-        allowedCommands,
-        sizeof(allowedCommands) / sizeof(allowedCommands[0]),
-        myCallback
-    );
+    // telegram.init(
+    //     BOT_TOKEN,
+    //     allowedIDs,
+    //     sizeof(allowedIDs) / sizeof(allowedIDs[0]),
+    //     allowedCommands,
+    //     sizeof(allowedCommands) / sizeof(allowedCommands[0]),
+    //     myCallback
+    // );
 
-    Serial.println("LnTelegram inizializzato");
+    // Serial.println("LnTelegram inizializzato");
 }
 
 // =============================
@@ -172,10 +172,10 @@ void loop() {
 
     static unsigned long lastCheck = 0;
 
-    if (millis() - lastCheck > 1000) {   // polling ogni 1 secondo
-        telegram.loop();
-        lastCheck = millis();
-    }
+    // if (millis() - lastCheck > 1000) {   // polling ogni 1 secondo
+    //     telegram.loop();
+    //     lastCheck = millis();
+    // }
 
     delay(100);
 }
