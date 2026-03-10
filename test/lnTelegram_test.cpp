@@ -17,17 +17,13 @@
 
 
 // =============================
-// WIFI Credentials
+// = WIFI and Telegram Credentials
 // =============================
-#include "ssid_credentials_esp32.h"
-const char* ssid     = casetta_ssid;
-const char* password = casetta_password;
-
-// =============================
-// TELEGRAM Credentials
-// =============================
-#include "telegram_credentials_esp32.h"
-const char* BOT_TOKEN = Loreto_Esp32_BotToken;
+#include <orto_esp32_credentials.h>
+const char* ssid      = casetta_ssid;
+const char* password  = casetta_password;
+const char* BOT_TOKEN = lnesp32orto_bot_token;
+const char* channel   = lnesp32orto_bot_name;
 
 // ===== ID autorizzati (in flash) =====
 const int64_t allowedIDs[] = {
@@ -55,8 +51,12 @@ const char* const allowedCommands[] PROGMEM = {
 // =============================
 LnTelegram      telegram;
 lnWiFiManagerNB   wifiManager;
-lnTimeClock     ln_clock;
+lnTimeClock     lnTime;
 
+
+void wifiScanEvent(bool scanning) {
+    telegram.setWifiScanning(scanning);
+}
 
 // =============================
 // CALLBACK COMANDI
@@ -118,12 +118,16 @@ void wifiInit() {
         wifiManager.addSSID(loretoNetworks[i].ssid, loretoNetworks[i].password);
     }
 
+    wifiManager.setScanCallback(wifiScanEvent);
+
     wifiManager.init(
-        60,   // scan ogni 60s se connesso
+        5*60,   // scan ogni 5*60s (5 minuti)se connesso
         30,   // scan ogni 30s se non connesso
-        5*60,  // timeout max 5 minuti (5*60)
+        10*60,  // timeout max 5 minuti (5*60)
         8        // rssi gap
     );
+    WiFi.setSleep(false); // riduce glitch radio durante TLS.
+
 
     // Serial.print("Gateway: ");
     // Serial.println(WiFi.gatewayIP());
@@ -149,33 +153,39 @@ void setup() {
     wifiInit();
 
     // supponiamo WiFi già gestito altrove
-    ln_clock.begin();
+    lnTime.begin();
 
-    // telegram.init(
-    //     BOT_TOKEN,
-    //     allowedIDs,
-    //     sizeof(allowedIDs) / sizeof(allowedIDs[0]),
-    //     allowedCommands,
-    //     sizeof(allowedCommands) / sizeof(allowedCommands[0]),
-    //     myCallback
-    // );
+    #ifdef __ln_INCLUDE_TELEGRAM__
+        telegram.init(
+            BOT_TOKEN,
+            allowedIDs,
+            sizeof(allowedIDs) / sizeof(allowedIDs[0]),
+            allowedCommands,
+            sizeof(allowedCommands) / sizeof(allowedCommands[0]),
+            myCallback
+        );
 
-    // Serial.println("LnTelegram inizializzato");
+        Serial.println("LnTelegram inizializzato");
+    #endif
 }
 
 // =============================
 // LOOP
 // =============================
 void loop() {
-    wifiManager.update();
-    ln_clock.update();
-
     static unsigned long lastCheck = 0;
+    wifiManager.update();
+    lnTime.update();
 
-    // if (millis() - lastCheck > 1000) {   // polling ogni 1 secondo
-    //     telegram.loop();
-    //     lastCheck = millis();
-    // }
+
+    #ifdef __ln_INCLUDE_TELEGRAM__
+        if (millis() - lastCheck > 3000) {   // polling ogni 1 secondo
+            lnLOG_INFO("Free heap: %d", ESP.getFreeHeap());
+            telegram.loop();
+            lastCheck = millis();
+        }
+    #endif
 
     delay(100);
 }
+

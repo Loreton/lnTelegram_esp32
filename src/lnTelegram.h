@@ -42,6 +42,7 @@ public:
     void sendMsg(int64_t chat_id, const char* text);
 
     void setBusy(bool state);
+    void setWifiScanning(bool state);
 
 private:
 
@@ -56,10 +57,13 @@ private:
     uint8_t _cmdCount;
 
     CommandCallback _callback;
-    unsigned long lastTelegramSuccess = 0;
-    bool started = false;
 
-    bool busy = false;
+    bool            m_busy = false;
+    bool            m_started = false;
+    // unsigned long   m_lastTelegramSuccess = 0;
+    unsigned long   m_lastReconnectAttempt = 0;
+    bool            m_wifiScanning = false;
+
 
     bool isAuthorized(int64_t id);
     bool isValidCommand(const char* cmd);

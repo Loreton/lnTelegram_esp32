@@ -22,10 +22,8 @@ void LnTelegram::init(const char* botToken,
 
     client.setInsecure();        // necessario per HTTPS Telegram
     bot.setTelegramToken(botToken);
-    bot.begin();
+    // bot.begin();
 
-    IPAddress dns(8,8,8,8);  // Google DNS
-    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns);
 
     /* configurazione DNS
         IPAddress local_IP;
@@ -45,33 +43,47 @@ void LnTelegram::init(const char* botToken,
 
 
 }
-
 void LnTelegram::loop() {
-    if (WiFi.status() != WL_CONNECTED)
+    if (m_wifiScanning)
         return;
+
+    if (WiFi.status() != WL_CONNECTED) {
+        m_started = false;
+        return;
+    }
+
+    // avvio Telegram una sola volta
+    if (!m_started) {
+
+        if (millis() - m_lastReconnectAttempt < 5000)
+            return;
+
+        m_lastReconnectAttempt = millis();
+
+        Serial.println("Telegram connecting...");
+        bot.begin();
+
+        m_started = true;
+        Serial.println("Telegram connected...");
+    }
 
     TBMessage msg;
 
     if (!bot.getNewMessage(msg))
         return;
 
-    // char chat_id[20];
-    // snprintf(chat_id, sizeof(chat_id), "%lld", msg.chatId);
     int64_t chat_id = msg.chatId;
 
-    // --- autorizzazione ---
     if (!isAuthorized(chat_id)) {
         sendMsg(chat_id, "Utente non autorizzato");
         return;
     }
 
-    // --- sistema occupato ---
-    if (busy) {
+    if (m_busy) {
         sendMsg(chat_id, "Sistema occupato");
         return;
     }
 
-    // --- parsing comando ---
     char command[MAX_CMD_LEN];
     char payload[MAX_PAYLOAD_LEN];
 
@@ -83,20 +95,24 @@ void LnTelegram::loop() {
     }
 
     if (_callback)
-        // _callback(chat_id, command, payload);
         _callback(msg, command, payload);
 }
 
+
+
 void LnTelegram::sendMsg(int64_t chat_id, const char* text) {
+
+    if (!m_started)
+        return;
+
     if (WiFi.status() != WL_CONNECTED)
         return;
 
     bot.sendTo(chat_id, text);
 }
 
-
 void LnTelegram::setBusy(bool state) {
-    busy = state;
+    m_busy = state;
 }
 
 
@@ -147,4 +163,9 @@ void LnTelegram::parseCommand(const char* text, char* command, char* payload) {
 
     strncpy(command, buffer, MAX_CMD_LEN);
     command[MAX_CMD_LEN - 1] = '\0';
+}
+
+
+void LnTelegram::setWifiScanning(bool state) {
+    m_wifiScanning = state;
 }
