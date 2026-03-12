@@ -37,7 +37,7 @@ const char cmd_echo[]   PROGMEM = "/echo";
 #define BUTTON_PIN 19
 bool            canUseNetwork = false;
 uint32_t        lastRetryTime = 0;
-const uint32_t  retryInterval = 30000; // 30 secondi tra i tentativi di scansione se disconnesso
+const uint32_t  retryInterval = 60000; // 60 secondi tra i tentativi di scansione se disconnesso
 
 // istanze
 lnWiFiManagerNB wifiManager;
@@ -47,12 +47,19 @@ lnTelegram      tgBot;
 // ================  CALLBACKs START ===============================
 // --- WIFI-CALLBACK
 void onConnectionChanged(bool connected) {
+    static uint8_t counter=0;
     canUseNetwork = connected;
 
     if (connected) {
+        counter=0;
         lnLOG_NOTIFY("%s Rete ripristinata. Avvio servizi...", mainLogPrefix);
     } else {
-        lnLOG_ERROR("%s Connessione persa. Servizi in pausa.", mainLogPrefix);
+        counter++;
+        lnLOG_ERROR("%s Connessione persa. Servizi in pausa. (counter: %d)", mainLogPrefix, counter);
+        lnLOG_WARNING("Free heap: %d", ESP.getFreeHeap());
+    }
+    if (counter > 10) {
+        ESP.restart();
     }
 }
 
@@ -102,6 +109,7 @@ void myTelegramProcessorCB(TBMessage &msg, const char* command, const char* payl
         );
 
         tgBot.sendMsg(chat_id, buffer);
+
     }
 }
 

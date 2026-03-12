@@ -18,6 +18,7 @@ lnTelegram::lnTelegram() : m_bot(m_client) {}
 void lnTelegram::begin(const char* token) {
     m_bot.setUpdateTime(2000); // Polling ogni 2 secondi
     m_bot.setTelegramToken(token);
+    m_token = token;
 
     m_client.setInsecure(); // Per semplicità, o usa certificati se preferisci
     m_client.setTimeout(5); // 5 secondi max per le operazioni socket
@@ -29,21 +30,16 @@ void lnTelegram::begin(const char* token) {
 
 
 void lnTelegram::update(bool isNetworkAvailable, bool isTimeValid) {
-    // lnLOG_NOTIFY("%s is net ready...: %d", tgLogPrefix, isNetworkAvailable);
-    // lnLOG_NOTIFY("%s is time ok.....: %d", tgLogPrefix,  isTimeValid);
-
+    m_isNetworkAvailable = isNetworkAvailable; // per sendHTTP
     bool all_OK = (isTimeValid * isNetworkAvailable);
 
     if (!all_OK) {
-        // lnLOG_NOTIFY("%s NOT all is ready: net %d - time: %d", tgLogPrefix,  isNetworkAvailable, isTimeValid);
         if (m_isActive) {
             m_client.stop();
             m_isActive = false;
         }
         return;
     }
-
-    // if (!isTimeValid) return;
 
     if (!m_isActive) {
         lnLOG_NOTIFY("%s all is ready: net %d - time: %d", tgLogPrefix,  isNetworkAvailable, isTimeValid);
@@ -57,23 +53,15 @@ void lnTelegram::update(bool isNetworkAvailable, bool isTimeValid) {
         return;
     }
 
-    uint32_t        now = millis();
-
-
-        // TBMessage msg;
-        // if (m_bot.getNewMessage(msg)) {
-        //     lnLOG_INFO("Message from %s", msg.sender.username);
-        //     handleIncomingMessage(msg);
-        // }
 
     // -- per alleggerire la richiesta verso telegram (non so se abbia senso)
-    if (now - m_lastGetMessage > 1000) {
+    if (millis() - m_lastGetMessage > 500) {
         TBMessage msg;
         if (m_bot.getNewMessage(msg)) {
             lnLOG_INFO("Message from %s", msg.sender.username);
             handleIncomingMessage(msg);
         }
-        m_lastGetMessage = now;
+        m_lastGetMessage = millis();
     }
 
 }
@@ -128,6 +116,8 @@ void lnTelegram::handleIncomingMessage(TBMessage &msg) {
 
 
 bool lnTelegram::sendMsg(int64_t chat_id, const char* text) {
-    if (!m_isActive) return false;
+    if (!m_isActive && m_isNetworkAvailable) { // tentiamo la strada HTTPS
+        return this->sendHTTP(chat_id, text);
+    }
     return m_bot.sendTo(chat_id, text);
 }

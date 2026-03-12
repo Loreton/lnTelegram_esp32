@@ -19,7 +19,8 @@ class lnTelegram {
         // Invia a un ID specifico
         // bool sendMessage(int64_t id, const char* msg, const char* parseMode = "");
         bool sendMsg(int64_t chat_id, const char* text);
-
+        bool sendHTTP(int64_t chat_id, const char* msg);
+        uint16_t urlEncode(const char* src, char* dest);
         // Risponde all'ultimo messaggio ricevuto (comodo per la callback)
         // bool reply(TBMessage &msg, const char* txt, const char* parseMode = "");
 
@@ -32,6 +33,7 @@ class lnTelegram {
 
         // Configurazione
         void setCommandCallback(TelegramCommandCallback cb) { m_cmdCallback = cb; }
+
         // void setAuthorizedIDs(const int64_t* ids, size_t count);
 
         // void broadcast(const char* message); // Invia un messaggio a tutti gli ID autorizzati
@@ -47,8 +49,7 @@ class lnTelegram {
 
         bool        m_isActive = false;
         uint32_t    m_lastGetMessage = 0; // ultimo momento della lettura di nuovi messaggi
-        // bool m_wasActive = false; // Per rilevare la riconnessione
-        // bool m_firstConnectDone = false; // Per inviare il messaggio di boot una sola volta
+        const char*    m_token = nullptr;
 
         // Helper interni
         void handleIncomingMessage(TBMessage &msg);
