@@ -1,0 +1,19 @@
+{
+  "name": "lnTelegram",
+  "version": "0.1.6",
+  "description": "Custom telegramBot library for ESP32 projects.",
+  "keywords": [
+    "wifi",
+    "bot"
+  ],
+  "authors": [
+    {
+      "name": "Loreto",
+      "email": "tu@email.com"
+    }
+  ],
+  "license": "MIT",
+  "build": {
+    "flags": ""
+  }
+}
