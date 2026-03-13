@@ -125,7 +125,7 @@ void lnTelegram::parseCommand(const char* text, char* command, char* payload) {
 // ##########################################################
 // #
 // ##########################################################
-void lnTelegram::handleIncomingMessage(TBMessage &msg) {
+/*void lnTelegram::handleIncomingMessage(TBMessage &msg) {
     lnLOG_WARNING("%s received message: %s", tgLogPrefix, msg.text.c_str());
 
     char command[MAX_CMD_LEN];
@@ -137,6 +137,31 @@ void lnTelegram::handleIncomingMessage(TBMessage &msg) {
         // Qui la tua callback deciderà se il comando è valido o meno
         m_cmdCallback(msg, command, payload);
     }
+}*/
+
+
+// ##########################################################
+// #
+// ##########################################################
+void lnTelegram::handleIncomingMessage(TBMessage &msg) {
+    // Se c'è già un messaggio che attende di essere processato,
+    // ignoriamo quelli nuovi per non sovrascrivere la memoria.
+    if (m_pending.exists) {
+        lnLOG_WARNING("%s Buffer busy, skipping message.", tgLogPrefix);
+        return;
+    }
+
+    if (!isAuthorized(msg.chatId)) {
+        sendMsg(msg.chatId, "⛔ Accesso negato.");
+        return;
+    }
+
+    // Copia dei dati essenziali (estrazione dal messaggio originale)
+    m_pending.chatId = msg.chatId;
+    parseCommand(msg.text.c_str(), m_pending.command, m_pending.payload);
+
+    m_pending.exists = true;
+    lnLOG_DEBUG("%s Task stored: %s", tgLogPrefix, m_pending.command);
 }
 
 

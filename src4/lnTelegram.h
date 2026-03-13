@@ -13,6 +13,30 @@ class lnTelegram {
     public:
         lnTelegram();
 
+
+        // pending Task
+        // Definiamo una struttura "leggera" per il comando pendente
+        struct PendingMessage {
+            int64_t chatId;
+            char command[MAX_CMD_LEN];
+            char payload[MAX_PAYLOAD_LEN];
+            bool exists = false; // Il nostro flag
+        };
+
+
+        // Aggiungiamo un metodo per verificare se c'è un task da processare
+        // bool hasPendingTask() { return m_pending.exists; }
+        // PendingTask& getPendingTask() { return m_pending; }
+        // void clearPendingTask() { m_pending.exists = false; }
+
+        // Gestione dei messaggi ricevuti (Polling-style)
+        bool hasPendingMessage() { return m_pending.exists; }
+        PendingMessage getPendingMessage() { return m_pending; }
+        void clearPendingMessage() { m_pending.exists = false; } // Libera il buffer
+
+
+
+
         // Inizializzazione
         void begin(const char* token);
 
@@ -40,6 +64,7 @@ class lnTelegram {
 
         // valid commands
         void setValidCommands(const char** cmds, size_t count);
+        void parseCommand(const char* text, char* command, char* payload);
 
         // void broadcast(const char* message); // Invia un messaggio a tutti gli ID autorizzati
 
@@ -49,6 +74,8 @@ class lnTelegram {
 
         TelegramCommandCallback m_cmdCallback = nullptr;
 
+        // pending Task
+        PendingMessage m_pending; // Una sola istanza pre-allocata in RAM
 
         bool        m_isActive = false;
         bool        m_isNetworkAvailable = false;
@@ -65,5 +92,4 @@ class lnTelegram {
 
         // Helper interni
         void handleIncomingMessage(TBMessage &msg);
-        void parseCommand(const char* text, char* command, char* payload);
 };

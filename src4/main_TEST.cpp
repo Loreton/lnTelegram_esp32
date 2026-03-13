@@ -71,22 +71,57 @@ void onConnectionChanged(bool connected) {
 
 
 
+// bool newTgMsg_has_arrived=false;
+// TBMessage* newTgMsg;
+// TBMessage newTgMsg1;
 
-TBMessage newTgMsg = nullptr;
+
+// TBMessage newTgMsg;         // Buffer per la copia del messaggio
+// bool hasNewMsg = false;     // Flag di stato
+
 // #########################################################
 // # --- Telegram-CALLBACK
 // # --- fatta per liberare subito la caalBack
 // #########################################################
-void myTelegramProcessorCB(TBMessage &msg, const char* command, const char* payload) {
-    if (!newTgMsg) {
-        newTgMsg = msg;
-    }
-}
+// void myTelegramProcessorCB(TBMessage &msg, const char* command, const char* payload) {
+// void myTelegramProcessorCB(TBMessage &msg) {
+//     // Se il buffer è libero, carichiamo il nuovo messaggio
+//     if (!hasNewMsg) {
+//         newTgMsg = msg; // Copia profonda di tutti i campi (text, sender, etc.)
+//         hasNewMsg = true;
+//         lnLOG_DEBUG("TG: Messaggio copiato nel buffer.");
+//     } else {
+//         lnLOG_WARNING("TG: Buffer occupato, messaggio scartato.");
+//     }
+// }
 
+// void processTelegramMessage() {
+//     // Qui lavoriamo sulla COPIA (newTgMsg)
+//     lnLOG_INFO("TG: Elaborazione comando: %s", newTgMsg.text.c_str());
+
+//     // Esempio di risposta usando la copia
+//     tgBot.reply(newTgMsg, "Ho ricevuto il tuo comando!");
+
+//     // IMPORTANTE: resettiamo il flag alla fine
+//     hasNewMsg = false;
+// }
+
+// void processTelegramMessage() {
+//     // Creiamo una copia locale di lavoro se il processo è molto lungo
+//     TBMessage currentJob = newTgMsg;
+//     hasNewMsg = false; // Liberiamo SUBITO il buffer per il prossimo messaggio
+
+//     // Ora lavoriamo su currentJob con tutta la calma necessaria...
+//     if (currentJob.text == "/status") {
+//         // ...
+//     }
+// }
+
+#if 0
 // #########################################################
-// # --- Telegram-CALLBACK reale
+// # --- Telegram process message
 // #########################################################
-void processTelegramMessage(TBMessage &msg, const char* command, const char* payload) {
+void processTelegramMessage() {
     lnLOG_WARNING("%s CallBACK - received message: %s", mainLogPrefix, msg.text.c_str());
     lnLOG_WARNING("%s   user:    %s", mainLogPrefix, msg.sender.username);
     lnLOG_WARNING("%s   chatID:  %lld", mainLogPrefix, msg.chatId);
@@ -133,6 +168,7 @@ void processTelegramMessage(TBMessage &msg, const char* command, const char* pay
 
     }
 }
+#endif
 
 
 // #########################################################
@@ -185,7 +221,7 @@ void setup() {
     tgBot.begin(BOT_TOKEN);
     tgBot.setAuthorizedIDs(allowedIDs, sizeof(allowedIDs) / sizeof(allowedIDs[0]));
     tgBot.setValidCommands(validCmds, sizeof(validCmds) / sizeof(validCmds[0]));
-    tgBot.setCommandCallback(myTelegramProcessorCB);
+    // tgBot.setCommandCallback(myTelegramProcessorCB);
 
     timeSched.onHour(onHourCB);
 }
@@ -246,12 +282,31 @@ void loop() {
         }
     }
 
-    scheduler.everySeconds(1, [](){ // senza callback ogni 2 secondi
-        if (newTgMsg) {
-            lnLOG_INFO("new message has been arrived!");
-            processTelegramMessage();
+    timeSched.everySeconds(1, [](){ // senza callback ogni 2 secondi
+        // 2. Controlla se il bot ha depositato un comando
+        if (tgBot.hasPendingMessage()) {
+
+            // Recuperiamo il riferimento al Messaggio
+            auto& msg = tgBot.getPendingMessage();
+
+            lnLOG_INFO("Processing: %s with payload: %s", msg.command, msg.payload);
+
+            // 3. Esegui la logica
+            if (strcasecmp(msg.command, "/status") == 0) {
+                tgBot.sendMsg(msg.chatId, "📊 Sistema operativo.");
+            }
+            else if (strcasecmp(msg.command, "/echo") == 0) {
+                tgBot.sendMsg(msg.chatId, "Hai detto: %s", msg.payload);
+            }
+
+            // 4. Libera il buffer per il prossimo messaggio
+            tgBot.clearPendingMessage();
         }
+
     });
+
+
+
 
 }
 
