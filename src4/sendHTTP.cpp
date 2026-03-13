@@ -7,7 +7,7 @@
 #include <HTTPClient.h>
 #include "lnTelegram.h"
 #include <lnLogger_Class.h>
-
+const char* tghLogPrefix = "tgHTTP:";
 
 HTTPClient http;
 
@@ -44,14 +44,14 @@ bool lnTelegram::sendHTTP(int64_t chat_id, const char* msg) {
     // --- snprintf() scrive al massimo n-1 caratteri più il terminatore nul (\0) in dest.
     snprintf(tg->fullMsg, sizeof(tg->fullMsg), urlFormat, m_token, chat_id, parseMode, tg->encoded);
 
-    lnLOG_DEBUG("Sending msg: [%ld]: %s", strlen(tg->fullMsg), tg->fullMsg);
+    lnLOG_DEBUG("%sSending msg: [%ld]: %s", tghLogPrefix, strlen(tg->fullMsg), tg->fullMsg);
     http.begin(tg->fullMsg);
     int httpResponseCode = http.GET();
     const char* statusMsg;
     http.end();
     tg->msg[0] = '\0'; // clear message
 
-    lnLOG_DEBUG("[http code: %d]", httpResponseCode);
+    lnLOG_DEBUG("%s [http code: %d]", tghLogPrefix. httpResponseCode);
 
     switch (httpResponseCode) {
         // Informational responses (100 – 199)
@@ -61,7 +61,7 @@ bool lnTelegram::sendHTTP(int64_t chat_id, const char* msg) {
         // Server error responses (500 – 599)
 
         case 200 ...299:
-            lnLOG_INFO("[%d] - Send OK", httpResponseCode);
+            lnLOG_INFO("%s [%d] - Send OK", tghLogPrefix, httpResponseCode);
             fStatus=true;
             statusMsg = nullptr;
             break;
@@ -89,7 +89,7 @@ bool lnTelegram::sendHTTP(int64_t chat_id, const char* msg) {
     }
 
     if (statusMsg) {
-        lnLOG_ERROR("sendHTTP: rcode: %d - msg: %s URL: %s (size: %ld)", httpResponseCode, statusMsg, tg->fullMsg, strlen(tg->fullMsg));
+        lnLOG_ERROR("%s sendHTTP: rcode: %d - msg: %s URL: %s (size: %ld)", tghLogPrefix, httpResponseCode, statusMsg, tg->fullMsg, strlen(tg->fullMsg));
     }
 
 
@@ -137,12 +137,12 @@ uint16_t lnTelegram::urlEncode(const char* src, char* dest) {
         p++;
         urlEncode_len = q-dest;
         if (urlEncode_len >= MAX_TELEGRAM_ENCODED_SIZE) {
-            lnLOG_ERROR("urlEncode [len: %ld] is greather than MAX_TELEGRAM_ENCODED_SIZE (%ld)", urlEncode_len, MAX_TELEGRAM_ENCODED_SIZE);
+            lnLOG_ERROR("%s urlEncode [len: %ld] is greather than MAX_TELEGRAM_ENCODED_SIZE (%ld)", tghLogPrefix, urlEncode_len, MAX_TELEGRAM_ENCODED_SIZE);
             break;
         }
     }
     *q = '\0';
-    lnLOG_DEBUG("urlEncode [len: %ld] - %s", urlEncode_len, dest);
+    lnLOG_DEBUG("%s urlEncode [len: %ld] - %s", tghLogPrefix, urlEncode_len, dest);
     // Serial.print("urlEncode [len: ");
     // Serial.print(urlEncode_len);
     // Serial.print(" - ");

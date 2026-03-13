@@ -9,29 +9,40 @@
 // Callback avanzata con comando e payload già estratti
 typedef void (*TelegramCommandCallback)(TBMessage &msg, const char* cmd, const char* payload);
 
+
+// pending Task
+// Definiamo una struttura "leggera" per il comando pendente
+// struct PendingMessage {
+//     int64_t chatId;
+//     // const char *username;
+//     const char* sender_username;
+//     const char* sender_firstName;
+//     const char* sender_lastName;
+//     char command[MAX_CMD_LEN];
+//     char payload[MAX_PAYLOAD_LEN];
+//     bool exists = false; // Il nostro flag
+// };
+
+
+#define MAX_NAME_LEN 32
+
+struct PendingMessage {
+    int64_t chatId;
+    char sender_username[MAX_NAME_LEN];
+    char sender_firstName[MAX_NAME_LEN];
+    char sender_lastName[MAX_NAME_LEN];
+    char command[MAX_CMD_LEN];
+    char payload[MAX_PAYLOAD_LEN];
+    bool exists = false;
+};
+
 class lnTelegram {
     public:
         lnTelegram();
 
-
-        // pending Task
-        // Definiamo una struttura "leggera" per il comando pendente
-        struct PendingMessage {
-            int64_t chatId;
-            char command[MAX_CMD_LEN];
-            char payload[MAX_PAYLOAD_LEN];
-            bool exists = false; // Il nostro flag
-        };
-
-
-        // Aggiungiamo un metodo per verificare se c'è un task da processare
-        // bool hasPendingTask() { return m_pending.exists; }
-        // PendingTask& getPendingTask() { return m_pending; }
-        // void clearPendingTask() { m_pending.exists = false; }
-
         // Gestione dei messaggi ricevuti (Polling-style)
         bool hasPendingMessage() { return m_pending.exists; }
-        PendingMessage getPendingMessage() { return m_pending; }
+        PendingMessage &getPendingMessage() { return m_pending; }
         void clearPendingMessage() { m_pending.exists = false; } // Libera il buffer
 
 

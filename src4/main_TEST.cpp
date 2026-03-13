@@ -6,7 +6,6 @@
 #ifdef  __ln_MAIN_TEST_MODULE__
 const char* mainLogPrefix = "MAIN:";
 
-#include "lnTelegram.h"
 // #include <ssid_credentials_esp32.h>
 
 #define __I_AM_MAIN_CPP__
@@ -14,6 +13,7 @@ const char* mainLogPrefix = "MAIN:";
 #include "lnWiFiManager.h"
 #include "lnTimeClock.h"
 #include "lnTimeScheduler.h"
+#include "lnTelegram.h"
 
 // =============================
 // = WIFI and Telegram Credentials
@@ -61,88 +61,46 @@ void onConnectionChanged(bool connected) {
     } else {
         disconnection_counter++;
         lnLOG_ERROR("%s Connessione persa. Servizi in pausa. (disconnection_counter: %d)", mainLogPrefix, disconnection_counter);
-        lnLOG_WARNING("%s Free heap: %lld", mainLogPrefix, ESP.getFreeHeap());
+        lnLOG_WARNING("%s Free heap: %d", mainLogPrefix, ESP.getFreeHeap());
     }
     if (disconnection_counter > 10) {
-        lnLOG_WARNING("%s Disconnessioni totali: %d memory: %lld", mainLogPrefix, disconnection_counter, ESP.getFreeHeap());
+        lnLOG_WARNING("%s Disconnessioni totali: %d memory: %d", mainLogPrefix, disconnection_counter, ESP.getFreeHeap());
         ESP.restart();
     }
 }
 
 
 
-// bool newTgMsg_has_arrived=false;
-// TBMessage* newTgMsg;
-// TBMessage newTgMsg1;
-
-
-// TBMessage newTgMsg;         // Buffer per la copia del messaggio
-// bool hasNewMsg = false;     // Flag di stato
-
-// #########################################################
-// # --- Telegram-CALLBACK
-// # --- fatta per liberare subito la caalBack
-// #########################################################
-// void myTelegramProcessorCB(TBMessage &msg, const char* command, const char* payload) {
-// void myTelegramProcessorCB(TBMessage &msg) {
-//     // Se il buffer è libero, carichiamo il nuovo messaggio
-//     if (!hasNewMsg) {
-//         newTgMsg = msg; // Copia profonda di tutti i campi (text, sender, etc.)
-//         hasNewMsg = true;
-//         lnLOG_DEBUG("TG: Messaggio copiato nel buffer.");
-//     } else {
-//         lnLOG_WARNING("TG: Buffer occupato, messaggio scartato.");
-//     }
-// }
-
-// void processTelegramMessage() {
-//     // Qui lavoriamo sulla COPIA (newTgMsg)
-//     lnLOG_INFO("TG: Elaborazione comando: %s", newTgMsg.text.c_str());
-
-//     // Esempio di risposta usando la copia
-//     tgBot.reply(newTgMsg, "Ho ricevuto il tuo comando!");
-
-//     // IMPORTANTE: resettiamo il flag alla fine
-//     hasNewMsg = false;
-// }
-
-// void processTelegramMessage() {
-//     // Creiamo una copia locale di lavoro se il processo è molto lungo
-//     TBMessage currentJob = newTgMsg;
-//     hasNewMsg = false; // Liberiamo SUBITO il buffer per il prossimo messaggio
-
-//     // Ora lavoriamo su currentJob con tutta la calma necessaria...
-//     if (currentJob.text == "/status") {
-//         // ...
-//     }
-// }
-
-#if 0
 // #########################################################
 // # --- Telegram process message
 // #########################################################
 void processTelegramMessage() {
-    lnLOG_WARNING("%s CallBACK - received message: %s", mainLogPrefix, msg.text.c_str());
-    lnLOG_WARNING("%s   user:    %s", mainLogPrefix, msg.sender.username);
-    lnLOG_WARNING("%s   chatID:  %lld", mainLogPrefix, msg.chatId);
-    lnLOG_WARNING("%s   command: %s", mainLogPrefix, command);
-    lnLOG_WARNING("%s   payload: %s", mainLogPrefix, payload);
+    auto& msg = tgBot.getPendingMessage();
 
-    int64_t chat_id = msg.chatId;
+    int64_t chatId = msg.chatId;
+    const char* payload = msg.payload;
+    const char* command = msg.command;
+
+    // lnLOG_INFO("%s   chatID:  %lld", mainLogPrefix, chatId);
+    // lnLOG_INFO("%s   command: %s",   mainLogPrefix, command);
+    // lnLOG_INFO("%s   payload: %s",   mainLogPrefix, payload);
+
+    lnLOG_INFO("%s chatID:  %lld - command: %s - payload: %s", mainLogPrefix, chatId, command, payload);
+
 
     if (strcmp(command, "/start") == 0) {
-        tgBot.sendMsg(chat_id, "Bot avviato correttamente");
+        tgBot.sendMsg(chatId, "Bot avviato correttamente");
     }
 
     else if (strcmp(command, "/status") == 0) {
-        tgBot.sendMsg(chat_id, "Sistema OK - ESP32 online");
+        tgBot.sendMsg(chatId, "Sistema OK - ESP32 online");
     }
 
     else if (strcmp(command, "/echo") == 0) {
         if (strlen(payload) == 0)
-            tgBot.sendMsg(chat_id, "Uso: /echo testo");
+            tgBot.sendMsg(chatId, "Uso: /echo testo");
         else
-            tgBot.sendMsg(chat_id, payload);
+            tgBot.sendMsg(chatId, payload);
     }
 
     else if (strcmp(command, "/whoami") == 0) {
@@ -150,25 +108,22 @@ void processTelegramMessage() {
         char buffer[256];
 
         snprintf(buffer, sizeof(buffer),
-            "command: %s\n"
+            "command:  %s\n"
+            "chatId:   %lld\n"
             "username: %s\n"
-            "chatId: %lld\n"
-            "userId: %lld\n"
-            "firstName: %s\n"
+            "firstName:%s\n"
             "lastName: %s",
             command,
-            msg.sender.username.length() ? msg.sender.username.c_str() : "-",
             msg.chatId,
-            msg.sender.id,
-            msg.sender.firstName.c_str(),
-            msg.sender.lastName.length() ? msg.sender.lastName.c_str() : "-"
+            strlen(msg.sender_username) ? msg.sender_username : "-",
+            msg.sender_firstName,
+            strlen(msg.sender_lastName) ? msg.sender_lastName : "-"
         );
 
-        tgBot.sendMsg(chat_id, buffer);
+        tgBot.sendMsg(chatId, buffer);
 
     }
 }
-#endif
 
 
 // #########################################################
@@ -177,6 +132,14 @@ void processTelegramMessage() {
 void onHourCB() {
     lnLOG_INFO("Nuova ora!");
     tgBot.sendMsg(nLoreto_ChatID, "I'm alive...");
+}
+
+void onMinuteCB() {
+    // lnLOG_DEBUG("Nuovo minuto!");
+    // lnLOG_DEBUG("isNetReady:  %d", wifiManager.isConnected() );
+    // lnLOG_DEBUG("free memory: %d", ESP.getFreeHeap() );
+    // lnLOG_DEBUG("isTimeValid: %d", timeClock.isTimeValid() );
+    lnLOG_INFO("%s free memory: %d - isNetReady: %d - isTimeValid: %d", mainLogPrefix, ESP.getFreeHeap(), wifiManager.isConnected(), timeClock.isTimeValid() );
 }
 // ================  CALLBACKs END =================================
 
@@ -224,6 +187,7 @@ void setup() {
     // tgBot.setCommandCallback(myTelegramProcessorCB);
 
     timeSched.onHour(onHourCB);
+    timeSched.onMinute(onMinuteCB);
 }
 
 
@@ -236,8 +200,8 @@ const int16_t RETRY_INTERVAL=60000; // 60 secondi tra i tentativi di scansione s
 
 void loop() {
     static bool firstRun = true;
-    uint32_t  lastRetryTime;
-    int8_t wifiRetryCounter;
+    static uint32_t  lastRetryTime;
+    static int8_t wifiRetryCounter;
 
     if (firstRun) {
         firstRun      = false;
@@ -246,6 +210,7 @@ void loop() {
     }
 
     wifiManager.update();
+    timeSched.update();
 
     bool isNetReady = wifiManager.isConnected();
     timeClock.update(isNetReady);
@@ -268,7 +233,7 @@ void loop() {
         }
     }
     if (wifiRetryCounter > 10) {
-        lnLOG_WARNING("%s tentativi totali: %d memory: %lld", mainLogPrefix, wifiRetryCounter, ESP.getFreeHeap());
+        lnLOG_WARNING("%s tentativi totali: %d memory: %d", mainLogPrefix, wifiRetryCounter, ESP.getFreeHeap());
         ESP.restart();
     }
 
@@ -282,25 +247,14 @@ void loop() {
         }
     }
 
-    timeSched.everySeconds(1, [](){ // senza callback ogni 2 secondi
-        // 2. Controlla se il bot ha depositato un comando
+    timeSched.everySeconds(2, [](){ // senza callback ogni 2 secondi
+    // 2. Controlla se il bot ha depositato un comando
         if (tgBot.hasPendingMessage()) {
-
-            // Recuperiamo il riferimento al Messaggio
-            auto& msg = tgBot.getPendingMessage();
-
-            lnLOG_INFO("Processing: %s with payload: %s", msg.command, msg.payload);
-
-            // 3. Esegui la logica
-            if (strcasecmp(msg.command, "/status") == 0) {
-                tgBot.sendMsg(msg.chatId, "📊 Sistema operativo.");
-            }
-            else if (strcasecmp(msg.command, "/echo") == 0) {
-                tgBot.sendMsg(msg.chatId, "Hai detto: %s", msg.payload);
-            }
-
+            lnLOG_DEBUG("Processing: new message");
+            processTelegramMessage();
             // 4. Libera il buffer per il prossimo messaggio
             tgBot.clearPendingMessage();
+            lnLOG_DEBUG("Processing: completed");
         }
 
     });
