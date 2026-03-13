@@ -22,6 +22,7 @@ typedef struct {
     char encoded[MAX_TELEGRAM_ENCODED_SIZE + 1];
     char fullMsg[MAX_TELEGRAM_FULL_MSG_SIZE + 1];
 } telegramBuffers_t;
+
 telegramBuffers_t tgMessage; // crea un'instanza di struct ed un pointer
 telegramBuffers_t *tg = &tgMessage; // crea un'instanza di struct ed un pointer
 
@@ -31,20 +32,22 @@ telegramBuffers_t *tg = &tgMessage; // crea un'instanza di struct ed un pointer
 // #######################################################################
 bool lnTelegram::sendHTTP(int64_t chat_id, const char* msg) {
     bool fStatus=false;
-    // HTTPClient http;
+
+    // --- HTTPClient http;
     const char* parseMode="HTML";
-    // ---encoded
+
+    // --- encode message
     urlEncode(msg, tg->encoded);
 
-    // Costruisce l'URL completo con tutti i parametri
-
-    // snprintf() scrive al massimo n-1 caratteri più il terminatore nul (\0) in dest.
+    // --- Costruisce l'URL completo con tutti i parametri
     const char *urlFormat = "https://api.telegram.org/bot%s/sendMessage?chat_id=%lld&parse_mode=%s&text=%s";
+    // --- snprintf() scrive al massimo n-1 caratteri più il terminatore nul (\0) in dest.
     snprintf(tg->fullMsg, sizeof(tg->fullMsg), urlFormat, m_token, chat_id, parseMode, tg->encoded);
 
     lnLOG_DEBUG("Sending msg: [%ld]: %s", strlen(tg->fullMsg), tg->fullMsg);
     http.begin(tg->fullMsg);
     int httpResponseCode = http.GET();
+    const char* statusMsg;
     http.end();
     tg->msg[0] = '\0'; // clear message
 
@@ -60,25 +63,35 @@ bool lnTelegram::sendHTTP(int64_t chat_id, const char* msg) {
         case 200 ...299:
             lnLOG_INFO("[%d] - Send OK", httpResponseCode);
             fStatus=true;
+            statusMsg = nullptr;
             break;
 
         case 300 ...399:
-            lnLOG_INFO("[%d] - Redirect....????", httpResponseCode);
+            // lnLOG_INFO("[%d] - Redirect....????", httpResponseCode);
+            statusMsg = "Redirect....????";
             fStatus=true;
             break;
 
         case 400 ...499:
-            lnLOG_ERROR("[%d] - Bad Request! Client Error URL: %s (size: %ld)", httpResponseCode, tg->fullMsg, strlen(tg->fullMsg));
+            // lnLOG_ERROR("[%d] - Bad Request! Client Error URL: %s (size: %ld)", httpResponseCode, tg->fullMsg, strlen(tg->fullMsg));
+            statusMsg = "Bad Request! Client Error";
             break;
 
         case 500 ...599:
-            lnLOG_ERROR("[%d] - Bad Request! Server Error URL: %s (size: %ld)", httpResponseCode, tg->fullMsg, strlen(tg->fullMsg));
+            // lnLOG_ERROR("[%d] - Bad Request! Server Error URL: %s (size: %ld)", httpResponseCode, tg->fullMsg, strlen(tg->fullMsg));
+            statusMsg = "Bad Request! Server Error";
             break;
 
         default:
-            lnLOG_ERROR("[%d] - Send ERROR! URL: %s (size: %ld)", httpResponseCode, tg->fullMsg, strlen(tg->fullMsg));
+            // lnLOG_ERROR("[%d] - Send ERROR! URL: %s (size: %ld)", httpResponseCode, tg->fullMsg, strlen(tg->fullMsg));
+            statusMsg = "Send ERROR!";
             break;
     }
+
+    if (statusMsg) {
+        lnLOG_ERROR("sendHTTP: rcode: %d - msg: %s URL: %s (size: %ld)", httpResponseCode, statusMsg, tg->fullMsg, strlen(tg->fullMsg));
+    }
+
 
 
     return fStatus;

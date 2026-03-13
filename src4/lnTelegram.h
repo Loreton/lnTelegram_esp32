@@ -34,7 +34,12 @@ class lnTelegram {
         // Configurazione
         void setCommandCallback(TelegramCommandCallback cb) { m_cmdCallback = cb; }
 
-        // void setAuthorizedIDs(const int64_t* ids, size_t count);
+        // authorized users
+        void setAuthorizedIDs(const int64_t* ids, size_t count);
+        bool isAuthorized(int64_t id);
+
+        // valid commands
+        void setValidCommands(const char** cmds, size_t count);
 
         // void broadcast(const char* message); // Invia un messaggio a tutti gli ID autorizzati
 
@@ -44,12 +49,19 @@ class lnTelegram {
 
         TelegramCommandCallback m_cmdCallback = nullptr;
 
-        // const int64_t* m_authorizedIDs = nullptr;
-        // size_t m_authCount = 0;
 
         bool        m_isActive = false;
+        bool        m_isNetworkAvailable = false;
         uint32_t    m_lastGetMessage = 0; // ultimo momento della lettura di nuovi messaggi
         const char*    m_token = nullptr;
+
+        // authorized users
+        const int64_t* m_authorizedIDs = nullptr;
+        size_t m_authCount = 0;
+
+        // valid commands
+        size_t m_validCmdsCount = 0;
+        const char** m_validCommands = nullptr;
 
         // Helper interni
         void handleIncomingMessage(TBMessage &msg);

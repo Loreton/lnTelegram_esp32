@@ -26,9 +26,34 @@ void lnTelegram::begin(const char* token) {
 }
 
 
+// ##########################################################
+// # --- AUTHORIZED IDs
+// ##########################################################
+void lnTelegram::setAuthorizedIDs(const int64_t* ids, size_t count) {
+    m_authorizedIDs = ids;
+    m_authCount = count;
+}
+
+bool lnTelegram::isAuthorized(int64_t id) {
+    for (size_t i = 0; i < m_authCount; i++) {
+        if (m_authorizedIDs[i] == id) return true;
+    }
+    return false;
+}
 
 
+// ##########################################################
+// # --- VALID COMMANDS
+// ##########################################################
+void lnTelegram::setValidCommands(const char** cmds, size_t count) {
+    m_validCommands = cmds;
+    m_validCmdsCount = count;
+}
 
+
+// ##########################################################
+// #
+// ##########################################################
 void lnTelegram::update(bool isNetworkAvailable, bool isTimeValid) {
     m_isNetworkAvailable = isNetworkAvailable; // per sendHTTP
     bool all_OK = (isTimeValid * isNetworkAvailable);
@@ -47,6 +72,7 @@ void lnTelegram::update(bool isNetworkAvailable, bool isTimeValid) {
         if (m_bot.begin()) {
             m_isActive = true;
             lnLOG_SUCCESS("%s Bot Ready.", tgLogPrefix);
+            // sendMsg()
         } else {
             lnLOG_ERROR("%s Bot begin error!", tgLogPrefix);
         }
@@ -115,6 +141,9 @@ void lnTelegram::handleIncomingMessage(TBMessage &msg) {
 
 
 
+// ##########################################################
+// #
+// ##########################################################
 bool lnTelegram::sendMsg(int64_t chat_id, const char* text) {
     if (!m_isActive && m_isNetworkAvailable) { // tentiamo la strada HTTPS
         return this->sendHTTP(chat_id, text);

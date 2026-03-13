@@ -13,6 +13,7 @@ const char* mainLogPrefix = "MAIN:";
 #include "lnLogger_Class.h"
 #include "lnWiFiManager.h"
 #include "lnTimeClock.h"
+#include "lnTimeScheduler.h"
 
 // =============================
 // = WIFI and Telegram Credentials
@@ -30,42 +31,62 @@ const char* channel   = lnesp32orto_bot_name;
 const int64_t allowedIDs[] = { nLoreto_ChatID, nLoreto_ChatID };
 
 // ===== Comandi validi (esempi) =====
-const char cmd_status[] PROGMEM = "/status";
-const char cmd_echo[]   PROGMEM = "/echo";
+// const char cmd_status[] PROGMEM = "/status";
+// const char cmd_echo[]   PROGMEM = "/echo";
+
+const char*  validCmds[] PROGMEM = {"/start", "/stop", "/status", "/echo"};
 
 // Variabili di stato
 #define BUTTON_PIN 19
 bool            canUseNetwork = false;
-uint32_t        lastRetryTime = 0;
-const uint32_t  retryInterval = 60000; // 60 secondi tra i tentativi di scansione se disconnesso
+
 
 // istanze
 lnWiFiManagerNB wifiManager;
 lnTimeClock     timeClock;
 lnTelegram      tgBot;
+lnTimeScheduler timeSched(&timeClock); // passa la classe
 
 // ================  CALLBACKs START ===============================
-// --- WIFI-CALLBACK
+// #########################################################
+// # --- WIFI-CALLBACK
+// #########################################################
 void onConnectionChanged(bool connected) {
-    static uint8_t counter=0;
+    static uint8_t disconnection_counter=0;
     canUseNetwork = connected;
 
     if (connected) {
-        counter=0;
+        disconnection_counter=0;
         lnLOG_NOTIFY("%s Rete ripristinata. Avvio servizi...", mainLogPrefix);
     } else {
-        counter++;
-        lnLOG_ERROR("%s Connessione persa. Servizi in pausa. (counter: %d)", mainLogPrefix, counter);
-        lnLOG_WARNING("Free heap: %d", ESP.getFreeHeap());
+        disconnection_counter++;
+        lnLOG_ERROR("%s Connessione persa. Servizi in pausa. (disconnection_counter: %d)", mainLogPrefix, disconnection_counter);
+        lnLOG_WARNING("%s Free heap: %lld", mainLogPrefix, ESP.getFreeHeap());
     }
-    if (counter > 10) {
+    if (disconnection_counter > 10) {
+        lnLOG_WARNING("%s Disconnessioni totali: %d memory: %lld", mainLogPrefix, disconnection_counter, ESP.getFreeHeap());
         ESP.restart();
     }
 }
 
 
-// --- Telegram-CALLBACK
+
+
+TBMessage newTgMsg = nullptr;
+// #########################################################
+// # --- Telegram-CALLBACK
+// # --- fatta per liberare subito la caalBack
+// #########################################################
 void myTelegramProcessorCB(TBMessage &msg, const char* command, const char* payload) {
+    if (!newTgMsg) {
+        newTgMsg = msg;
+    }
+}
+
+// #########################################################
+// # --- Telegram-CALLBACK reale
+// #########################################################
+void processTelegramMessage(TBMessage &msg, const char* command, const char* payload) {
     lnLOG_WARNING("%s CallBACK - received message: %s", mainLogPrefix, msg.text.c_str());
     lnLOG_WARNING("%s   user:    %s", mainLogPrefix, msg.sender.username);
     lnLOG_WARNING("%s   chatID:  %lld", mainLogPrefix, msg.chatId);
@@ -114,15 +135,21 @@ void myTelegramProcessorCB(TBMessage &msg, const char* command, const char* payl
 }
 
 
-// --- lnTimeClock-CALLBACK
-void onMinuteCB() {
-    lnLOG_INFO("Nuovo minuto!");
+// #########################################################
+// # --- lnTimeClock-CALLBACK
+// #########################################################
+void onHourCB() {
+    lnLOG_INFO("Nuova ora!");
+    tgBot.sendMsg(nLoreto_ChatID, "I'm alive...");
 }
 // ================  CALLBACKs END =================================
 
 
 
 
+// #########################################################
+// #    WiFi setupe
+// #########################################################
 void wifiInit() {
     // - prima dell'init()
     for (int8_t i = 0; i < loretoNetworksCount; i++) {
@@ -138,9 +165,9 @@ void wifiInit() {
 
 
 
-//#########################################################
-//#    S E T U P
-//#########################################################
+// #########################################################
+// #    S E T U P
+// #########################################################
 void setup() {
     // setCpuFrequencyMhz(240); // Assicurati che l'ESP32 sia al massimo della potenza
     Serial.begin(115200);
@@ -156,17 +183,32 @@ void setup() {
 
 
     tgBot.begin(BOT_TOKEN);
-    // tgBot.setAuthorizedIDs(allowedIDs, sizeof(allowedIDs) / sizeof(allowedIDs[0]));
+    tgBot.setAuthorizedIDs(allowedIDs, sizeof(allowedIDs) / sizeof(allowedIDs[0]));
+    tgBot.setValidCommands(validCmds, sizeof(validCmds) / sizeof(validCmds[0]));
     tgBot.setCommandCallback(myTelegramProcessorCB);
+
+    timeSched.onHour(onHourCB);
 }
 
 
 
+
 //#########################################################
-//#    S E T U P
+//#    L O O P
 //#########################################################
+const int16_t RETRY_INTERVAL=60000; // 60 secondi tra i tentativi di scansione se disconnesso
 
 void loop() {
+    static bool firstRun = true;
+    uint32_t  lastRetryTime;
+    int8_t wifiRetryCounter;
+
+    if (firstRun) {
+        firstRun      = false;
+        wifiRetryCounter = 0;
+        lastRetryTime = 0;
+    }
+
     wifiManager.update();
 
     bool isNetReady = wifiManager.isConnected();
@@ -182,13 +224,17 @@ void loop() {
     if (!isNetReady) {
         uint32_t now = millis();
         // Attendi almeno 10 secondi dall'ultima disconnessione prima di scansionare
-        if (now - lastRetryTime > retryInterval) {
-            lnLOG_NOTIFY("%s WiFi giù, attendo stabilità prima di scansionare...", mainLogPrefix);
+        if (now - lastRetryTime > RETRY_INTERVAL) {
+            lnLOG_NOTIFY("%s WiFi giù, attendo stabilità prima di scansionare... (wifiRetryCounter: %d)", mainLogPrefix, wifiRetryCounter);
             wifiManager.startScan();
             lastRetryTime = now;
+            wifiRetryCounter++;
         }
     }
-
+    if (wifiRetryCounter > 10) {
+        lnLOG_WARNING("%s tentativi totali: %d memory: %lld", mainLogPrefix, wifiRetryCounter, ESP.getFreeHeap());
+        ESP.restart();
+    }
 
 
     // --- TEST DISCONNESSIONE MANUALE ---
@@ -199,6 +245,13 @@ void loop() {
             delay(500); // Debounce brutale per il test
         }
     }
+
+    scheduler.everySeconds(1, [](){ // senza callback ogni 2 secondi
+        if (newTgMsg) {
+            lnLOG_INFO("new message has been arrived!");
+            processTelegramMessage();
+        }
+    });
 
 }
 
