@@ -134,12 +134,12 @@ void onHourCB() {
     tgBot.sendMsg(nLoreto_ChatID, "I'm alive...");
 }
 
+
+bool onMinute=false;
 void onMinuteCB() {
+    onMinute=true;
     // lnLOG_DEBUG("Nuovo minuto!");
-    // lnLOG_DEBUG("isNetReady:  %d", wifiManager.isConnected() );
-    // lnLOG_DEBUG("free memory: %d", ESP.getFreeHeap() );
-    // lnLOG_DEBUG("isTimeValid: %d", timeClock.isTimeValid() );
-    lnLOG_INFO("%s free memory: %d - isNetReady: %d - isTimeValid: %d", mainLogPrefix, ESP.getFreeHeap(), wifiManager.isConnected(), timeClock.isTimeValid() );
+    // lnLOG_INFO("%s free memory: %d - isNetReady: %d - isTimeValid: %d", mainLogPrefix, ESP.getFreeHeap(), wifiManager.isConnected(), timeClock.isTimeValid() );
 }
 // ================  CALLBACKs END =================================
 
@@ -196,18 +196,15 @@ void setup() {
 //#########################################################
 //#    L O O P
 //#########################################################
-const int16_t RETRY_INTERVAL=60000; // 60 secondi tra i tentativi di scansione se disconnesso
-
 void loop() {
-    static bool firstRun = true;
-    static uint32_t  lastRetryTime;
-    static int8_t wifiRetryCounter;
+    // Queste variabili "sopravvivono" tra un giro e l'altro del loop
+    // static bool  firstRun = true;
+    static uint32_t lastRetryTime = 0;
+    static int8_t wifiRetryCounter = 0;
 
-    if (firstRun) {
-        firstRun      = false;
-        wifiRetryCounter = 0;
-        lastRetryTime = 0;
-    }
+    uint32_t now = millis(); // 'static' non serve qui se lo assegni ogni volta
+
+    now = millis();
 
     wifiManager.update();
     timeSched.update();
@@ -221,17 +218,25 @@ void loop() {
 
 
 
+    if (onMinute) {
+        onMinute=false;
+        lnLOG_DEBUG("%s now: %lu - lastRetryTime: %lu - diff: %lu", mainLogPrefix, now, lastRetryTime, (now - lastRetryTime));
+        lnLOG_INFO("%s free memory: %d - isNetReady: %d - isTimeValid: %d", mainLogPrefix, ESP.getFreeHeap(), isNetReady, timeOK );
+    }
+
     // --- Tentare il rescan dopo un timeout ---
-    if (!isNetReady) {
-        uint32_t now = millis();
-        // Attendi almeno 10 secondi dall'ultima disconnessione prima di scansionare
-        if (now - lastRetryTime > RETRY_INTERVAL) {
+    if (isNetReady) {
+        wifiRetryCounter=0;
+    } else {
+        // Attendi almeno 60 secondi dall'ultima disconnessione prima di scansionare
+        if (now - lastRetryTime > 60000) {
             lnLOG_NOTIFY("%s WiFi giù, attendo stabilità prima di scansionare... (wifiRetryCounter: %d)", mainLogPrefix, wifiRetryCounter);
             wifiManager.startScan();
             lastRetryTime = now;
             wifiRetryCounter++;
         }
     }
+
     if (wifiRetryCounter > 10) {
         lnLOG_WARNING("%s tentativi totali: %d memory: %d", mainLogPrefix, wifiRetryCounter, ESP.getFreeHeap());
         ESP.restart();
@@ -250,11 +255,11 @@ void loop() {
     timeSched.everySeconds(2, [](){ // senza callback ogni 2 secondi
     // 2. Controlla se il bot ha depositato un comando
         if (tgBot.hasPendingMessage()) {
-            lnLOG_DEBUG("Processing: new message");
+            lnLOG_DEBUG("%s telegram message processing starting", mainLogPrefix);
             processTelegramMessage();
             // 4. Libera il buffer per il prossimo messaggio
             tgBot.clearPendingMessage();
-            lnLOG_DEBUG("Processing: completed");
+            lnLOG_DEBUG("%s telegram message processing completed", mainLogPrefix);
         }
 
     });

@@ -5,7 +5,7 @@
 #include "lnTelegram.h"
 #include <lnLogger_Class.h>
 
-const char* tgLogPrefix = "TG:";
+const char* tgLogPrefix = "TG:  ";
 
 // ##########################################################
 // #
@@ -72,7 +72,7 @@ void lnTelegram::update(bool isNetworkAvailable, bool isTimeValid) {
         if (m_bot.begin()) {
             m_isActive = true;
             lnLOG_SUCCESS("%s Bot Ready.", tgLogPrefix);
-            // sendMsg()
+            sendMsg(m_authorizedIDs[0], "bot just started!");
         } else {
             lnLOG_ERROR("%s Bot begin error!", tgLogPrefix);
         }
@@ -84,7 +84,7 @@ void lnTelegram::update(bool isNetworkAvailable, bool isTimeValid) {
     if (millis() - m_lastGetMessage > 500) {
         TBMessage msg;
         if (m_bot.getNewMessage(msg)) {
-            lnLOG_INFO("Message from %s", msg.sender.username);
+            lnLOG_INFO("%s Message from %s", tgLogPrefix, msg.sender.username);
             handleIncomingMessage(msg);
         }
         m_lastGetMessage = millis();

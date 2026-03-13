@@ -1,6 +1,6 @@
 {
   "name": "lnTelegram",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Custom telegramBot library for ESP32 projects.",
   "keywords": [
     "wifi",

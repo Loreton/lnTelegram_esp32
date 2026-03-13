@@ -7,7 +7,9 @@
 #include <HTTPClient.h>
 #include "lnTelegram.h"
 #include <lnLogger_Class.h>
-const char* tghLogPrefix = "tgHTTP:";
+
+
+const char* tghLogPrefix = "HTTP:";
 
 HTTPClient http;
 
@@ -51,7 +53,7 @@ bool lnTelegram::sendHTTP(int64_t chat_id, const char* msg) {
     http.end();
     tg->msg[0] = '\0'; // clear message
 
-    lnLOG_DEBUG("%s [http code: %d]", tghLogPrefix. httpResponseCode);
+    lnLOG_DEBUG("%s [http code: %d]", tghLogPrefix, httpResponseCode);
 
     switch (httpResponseCode) {
         // Informational responses (100 – 199)
