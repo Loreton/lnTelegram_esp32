@@ -1,3 +1,22 @@
+## v0.2.1 - 2026-03-14
+
+### Fixes
+- abbiamo capito che telegram bot non funziona perché fa cadere sempre la rete (Release 0.2.1)
+- rivista ed eliminata la callBack (Release 0.2.0)
+- ottimizzando telegram callback, iserimento aythUsers e valid commands
+- ottimizzando telegram callback, iserimento aythUsers e valid commands
+- inserito sendHTTP() Release 0.1.7
+- rivisitazione totale di Telegram (code:src4) Release 0.1.6
+- prima del nuovo modulo wifi 1.1.3 Release 0.1.5
+- ancora non funzionante perche telegram perde la connessione Release 0.1.4
+- update on 2026.03.08 08:53:19
+- update on 2026.03.04 20:01:24
+- rename class Release 0.1.3
+- inserimento codice Release 0.1.2
+- initial commit Release 0.1.1
+- initial commit Release 0.1.0
+- Initial commit
+
 ## v0.2.1 - 2026-03-13
 
 ### Fixes

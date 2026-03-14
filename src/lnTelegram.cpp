@@ -225,13 +225,9 @@ void lnTelegram::handleIncomingMessage(TBMessage &msg) {
 // #
 // ##########################################################
 bool lnTelegram::sendMsg(int64_t chat_id, const char* text) {
+    if (!m_isActive) return false;
     lnLOG_DEBUG("%s net %d - isActive: %d", tgLogPrefix,  m_isNetworkAvailable, m_isActive);
     lnLOG_INFO("%s chatId %lld, text: %s", tgLogPrefix,  chat_id, text);
-
-    if (!m_isActive && m_isNetworkAvailable) { // tentiamo la strada HTTPS
-        lnLOG_INFO("%s sending message via HTTP", tgLogPrefix);
-        return this->sendHTTP(chat_id, text);
-    }
-    lnLOG_INFO("%s sending message via BOT", tgLogPrefix);
     return m_bot.sendTo(chat_id, text);
 }
+
